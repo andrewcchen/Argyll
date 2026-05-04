@@ -30,7 +30,7 @@
 #endif
 #include <fcntl.h>
 
-#if TARGET_OS_MAC
+#ifndef _WIN32
 # include <unistd.h>
 #endif
 
