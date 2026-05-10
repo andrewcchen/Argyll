@@ -1188,15 +1188,19 @@ int main(int argc, char *argv[]) {
 				if (icmps != NULL) {
 					icompath **paths;
 					if ((paths = icmps->paths) != NULL) {
-						int i;
+						int i, npaths = 0, sel = 0;
 						for (i = 0; ; i++) {
 							if (paths[i] == NULL)
 								break;
+							npaths++;
 							if ((i+1) == comno) {
 								printf(" '%s'",paths[i]->name);
+								sel = 1;
 								break;
 							}
 						}
+						if (!sel && mcallout != NULL && comno == 0)
+							printf(" 'external source: %s'", mcallout);
 					}
 				}
 				printf(")\n");
@@ -1255,6 +1259,9 @@ int main(int argc, char *argv[]) {
 					icompath **paths;
 					if ((paths = icmps->paths) != NULL) {
 						int i;
+						if (mcallout != NULL) {
+							fprintf(stderr,"    0 = 'external source: %s'\n", mcallout);
+						}
 						for (i = 0; ; i++) {
 							if (paths[i] == NULL)
 								break;
@@ -1264,11 +1271,13 @@ int main(int argc, char *argv[]) {
 							else
 								fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
 						}
-						printf("Select device 1 - %d: \n",i);
+						printf("Select device 0 - %d: \n",i);
 						empty_con_chars();
 						c = next_con_char();
 
-						if (c < '1' || c > ('0' + i)) {
+						if (mcallout != NULL && c == '0') {
+							comno = 0;
+						} else if (c < '1' || c > ('0' + i)) {
 							printf("'%c' is out of range - ignored !\n",c);
 						} else {
 							comno = c - '0'; 
@@ -1289,14 +1298,23 @@ int main(int argc, char *argv[]) {
 				inst_mode  cap = inst_mode_none;	/* Instrument mode capabilities */
 				inst2_capability cap2 = inst2_none;	/* Instrument capabilities 2 */
 				inst3_capability cap3 = inst3_none;	/* Instrument capabilities 3 */
+				icompath *ipath;
+				char *use_mcallout = NULL;
 
 				if (fake)
 					comno = FAKE_DEVICE_PORT;
 				if (icmps == NULL)
 					icmps = new_icompaths(g_log);
+				ipath = icmps->get_path(icmps, comno);
+				if (ipath == NULL && mcallout == NULL) {
+					printf("No instrument selected. Try selecting it again ?\n");
+					continue;
+				}
+				if (comno == 0)
+					use_mcallout = mcallout;
 
 				/* Should we use current cal rather than native ??? */
-				if ((dr = new_disprd(&errc, icmps->get_path(icmps, comno),
+				if ((dr = new_disprd(&errc, ipath,
 				                     fc, ditype, sditype, 1, tele, ambient, nadaptive,
 				                     noinitcal, 0, highres, refrate, 3, NULL, NULL,
 					                 NULL, 0, disp, icalmax, 0, fullscreen,
@@ -1304,7 +1322,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 					                 madvrdisp,
 #endif
-									 dummydisp, ccallout, mcallout, 0,
+									 dummydisp, ccallout, use_mcallout, 0,
 					                 100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 					                 disptech_unknown, 0, NULL, NULL, 0, 2, icxOT_default, NULL, 
 				                     0, 0, "fake" ICC_FILE_EXT, g_log)) == NULL) {
@@ -1316,7 +1334,7 @@ int main(int argc, char *argv[]) {
 				it = dr->it;
 
 				if (fake || it == NULL) {
-					if (faketoggle || mcallout != NULL)
+					if (faketoggle || use_mcallout != NULL)
 						cap = inst_mode_spectral;
 					else
 						cap = inst_mode_colorimeter;
@@ -1598,8 +1616,3 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
-
-
-
-
