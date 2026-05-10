@@ -4027,10 +4027,13 @@ If
     three arguments are the RGB test color as integers in the range 0 to
     255, the second three parameters are the RGB test color as floating
     point numbers in the range 0.0 to 1.0. The script or tool should
-    create a file called <span style="font-weight: bold;">"command.meas</span>"
-    that contains the XYZ values for the given RGB (or measured from the
-    test window) in cd/m^2 as three numbers separated by spaces, before
-    returning. If the command returns a non-zero return value, dispcal
+    create either a file called <span style="font-weight: bold;">"command.sp"</span>
+    containing a single CGATS spectrum for the measured patch, or a file
+    called <span style="font-weight: bold;">"command.meas"</span> that
+    contains the XYZ values for the given RGB (or measured from the test
+    window) in cd/m^2 as three numbers separated by spaces, before
+    returning. If both files are present, the spectrum file takes
+    precedence and XYZ will be computed from it. If the command returns a non-zero return value, dispcal
     will abort. Note that a test window will also be created on the
     system running dispcal.<br>
     <br>

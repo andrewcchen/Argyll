@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <math.h>
 #include <sys/types.h>
 #include <time.h>
@@ -293,6 +294,7 @@ int main(int argc, char *argv[]) {
 	int npat;							/* Number of patches/colors */
 	int xpat = 0;						/* Set to number of extra patches */
 	int wpat = -1;						/* Set to index of white patch */
+	bool got_spectrum = false;			/* NZ if any captured patch has spectral data */
 	int si;								/* Sample id index */
 	int ti;								/* Temp index */
 	int fi;								/* Colorspace index */
@@ -1001,17 +1003,25 @@ int main(int argc, char *argv[]) {
 		ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", "Fake" , NULL);
 	}
 
-	/* Note if the instrument is natively spectral or not */
+	for (i = 0; i < (npat + xpat); i++) {
+		if (cols[i].sp.spec_n > 0) {
+			got_spectrum = true;
+			break;
+		}
+	}
+
+	/* Note if the instrument is natively spectral or if we captured spectral data. */
 	if (dr->it != NULL) {
 		inst_mode cap;
 		dr->it->capabilities(dr->it, &cap, NULL, NULL);
 
-		if (dr->it != NULL && cap & inst_mode_spectral)
+		if ((dr->it != NULL && (cap & inst_mode_spectral)) || got_spectrum)
 			ocg->add_kword(ocg, 0, "INSTRUMENT_TYPE_SPECTRAL", "YES" , NULL);
 		else
 			ocg->add_kword(ocg, 0, "INSTRUMENT_TYPE_SPECTRAL", "NO" , NULL);
 	} else {
-		ocg->add_kword(ocg, 0, "INSTRUMENT_TYPE_SPECTRAL", "NO" , NULL);
+		ocg->add_kword(ocg, 0, "INSTRUMENT_TYPE_SPECTRAL",
+		               got_spectrum ? "YES" : "NO", NULL);
 	}
 
 	dr->del(dr);

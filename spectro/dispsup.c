@@ -1233,6 +1233,32 @@ static void disprd_get_disptype(disprd *p, int *refrmode, int *cbid) {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 static int config_inst_displ(disprd *p);
 
+/* Convert a spectral reading to XYZ, using the shared converter when available. */
+static int disprd_sp_to_XYZ(disprd *p, col *cp, instClamping clamp) {
+	xsp2cie *sp2cie;
+	icxObserverType obType;
+
+	if (cp->sp.spec_n <= 0)
+		return 1;
+
+	if ((sp2cie = p->sp2cie) == NULL) {
+		obType = p->obType == icxOT_none ? icxOT_default : p->obType;
+		if ((sp2cie = new_xsp2cie(icxIT_none, 0.0, NULL, obType, p->custObserver,
+		                          icSigXYZData, icxNoClamp)) == NULL)
+			return 1;
+		sp2cie->convert(sp2cie, cp->XYZ, &cp->sp);
+		sp2cie->del(sp2cie);
+	} else {
+		sp2cie->convert(sp2cie, cp->XYZ, &cp->sp);
+	}
+
+	if (clamp)
+		icmClamp3(cp->XYZ, cp->XYZ);
+	cp->XYZ_v = 1;
+
+	return 0;
+}
+
 /* Take an ambient reading if the instrument has the capability. */
 /* return nz on fail/abort - see dispsup.h */
 /* Use disprd_err() to interpret it */
@@ -1820,7 +1846,11 @@ static int disprd_fake_read_co(disprd *p,
 		double rgb[3];
 		int rv;
 		char *cmd;
+		char *measname;
+		char *spname;
 		FILE *fp;
+		inst_meas_type mt = inst_mrt_none;
+		inst_meas_cond mc = inst_mrc_none;
 
 		/* deal with a user terminate or abort */
 		if (uicallback(uicontext, inst_measuring) == inst_user_abort) {
@@ -1883,6 +1913,10 @@ static int disprd_fake_read_co(disprd *p,
 
 		if ((cmd = malloc(strlen(p->mcallout) + 200)) == NULL)
 			error("Malloc of command string failed");
+		if ((measname = malloc(strlen(p->mcallout) + 20)) == NULL)
+			error("Malloc of measurement filename failed");
+		if ((spname = malloc(strlen(p->mcallout) + 20)) == NULL)
+			error("Malloc of spectrum filename failed");
 
 		sprintf(cmd, "%s %d %d %d %f %f %f",p->mcallout,
 			        (int)(rgb[0] * 255.0 + 0.5),
@@ -1891,25 +1925,46 @@ static int disprd_fake_read_co(disprd *p,
 		if ((rv = system(cmd)) != 0)
 			error("System command '%s' failed with %d",cmd,rv); 
 
-		/* Now read the XYZ result from the mcallout.meas file */
-		sprintf(cmd, "%s.meas",p->mcallout);
-		if ((fp = fopen(cmd,"r")) == NULL)
-			error("Unable to open measurement value file '%s'",cmd);
-
-		if (fscanf(fp, " %lf %lf %lf", &cols[patch].XYZ[0], &cols[patch].XYZ[1],
-		                               &cols[patch].XYZ[2]) != 3)
-			error("Unable to parse measurement value file '%s'",cmd);
-		fclose(fp);
-		free(cmd);
-
-		if (clamp)
-			icmClamp3(cols[patch].XYZ, cols[patch].XYZ);
-		cols[patch].XYZ_v = 1;
-		cols[patch].mtype = inst_mrt_emission;
+		cols[patch].XYZ_v = 0;
+		cols[patch].sp.spec_n = 0;
+		cols[patch].mtype = inst_mrt_none;
 		cols[patch].mcond = inst_mrc_none;
 
-		a1logv(p->log, 2, "Read XYZ %f %f %f from '%s'\n", cols[patch].XYZ[0],
-			                     cols[patch].XYZ[1],cols[patch].XYZ[2], cmd);
+		sprintf(spname, "%s.sp", p->mcallout);
+		if ((fp = fopen(spname, "r")) != NULL) {
+			fclose(fp);
+			if (read_xspect(&cols[patch].sp, &mt, &mc, spname) != 0)
+				error("Unable to parse measurement spectrum file '%s'", spname);
+			cols[patch].mtype = mt == inst_mrt_none ? inst_mrt_emission : mt;
+			cols[patch].mcond = mc;
+			if (disprd_sp_to_XYZ(p, &cols[patch], clamp) != 0)
+				error("Unable to convert measurement spectrum file '%s' to XYZ", spname);
+			a1logv(p->log, 2, "Read spectrum and XYZ %f %f %f from '%s'\n",
+			       cols[patch].XYZ[0], cols[patch].XYZ[1], cols[patch].XYZ[2], spname);
+		} else {
+			/* Fall back to the legacy XYZ result file. */
+			sprintf(measname, "%s.meas", p->mcallout);
+			if ((fp = fopen(measname,"r")) == NULL)
+				error("Unable to open measurement value file '%s' or spectrum file '%s'",
+				      measname, spname);
+
+			if (fscanf(fp, " %lf %lf %lf", &cols[patch].XYZ[0], &cols[patch].XYZ[1],
+			                               &cols[patch].XYZ[2]) != 3)
+				error("Unable to parse measurement value file '%s'", measname);
+			fclose(fp);
+
+			if (clamp)
+				icmClamp3(cols[patch].XYZ, cols[patch].XYZ);
+			cols[patch].XYZ_v = 1;
+			cols[patch].mtype = inst_mrt_emission;
+			cols[patch].mcond = inst_mrc_none;
+
+			a1logv(p->log, 2, "Read XYZ %f %f %f from '%s'\n", cols[patch].XYZ[0],
+				                     cols[patch].XYZ[1],cols[patch].XYZ[2], measname);
+		}
+		free(cmd);
+		free(measname);
+		free(spname);
 
 	}
 	if (acr && spat != 0 && tpat != 0 && (spat+patch-1) == tpat)
@@ -2958,4 +3013,3 @@ a1log *log      	/* Verb, debug & error log */
 	a1logd(log,1,"new_disprd succeeded\n");
 	return p;
 }
-
