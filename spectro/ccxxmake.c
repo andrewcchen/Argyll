@@ -1315,8 +1315,8 @@ int main(int argc, char *argv[]) {
 			
 				it = dr->it;
 
-				if (fake) {
-					if (faketoggle)
+				if (fake || it == NULL) {
+					if (faketoggle || mcallout != NULL)
 						cap = inst_mode_spectral;
 					else
 						cap = inst_mode_colorimeter;
@@ -1371,7 +1371,7 @@ int main(int argc, char *argv[]) {
 								refs[i][2] = rdcols[i].XYZ[2];
 							}
 						}
-						if (fake)
+						if (fake || it == NULL)
 							refname = "fake spectrometer";
 						else
 							refname = inst_name(it->dtype);
@@ -1386,7 +1386,7 @@ int main(int argc, char *argv[]) {
 							cols[i][1] = rdcols[i].XYZ[1];
 							cols[i][2] = rdcols[i].XYZ[2];
 						}
-						if (fake)
+						if (fake || it == NULL)
 							colname = "fake colorimeter";
 						else
 							colname = inst_name(it->dtype);
@@ -1598,7 +1598,6 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
 
 
 
