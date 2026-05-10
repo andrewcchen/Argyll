@@ -269,7 +269,7 @@ if $(RUNNER) {
 	NDepends linear.cal : synthcal ;
 	SYNTHCAL = $(RUNNER) [ NormPaths synthcal ] ;
 }
-GenFileND linear.cal : $(SYNTHCAL) [ NormPaths linear ] ;
+GenFileNNDnc linear.cal : $(SYNTHCAL) [ NormPaths linear ] : synthcal ;
 NDepends exe : linear.cal ;	# Normally create it 
 
 # Generate strange.cal example/diagnostic
@@ -280,7 +280,7 @@ if $(RUNNER) {
 	NDepends strange.cal : synthcal ;
 	SYNTHCAL = $(RUNNER) [ NormPaths synthcal ] ;
 }
-GenFileND strange.cal : $(SYNTHCAL) -s 0.7,1.0,0.9 -p 1.7,0.8,0.7 [ NormPaths strange ] ;
+GenFileNNDnc strange.cal : $(SYNTHCAL) -s 0.7,1.0,0.9 -p 1.7,0.8,0.7 [ NormPaths strange ] : synthcal ;
 NDepends exe : strange.cal ;	# Normally create it 
 
 # Dumy ti3 file generator for testing
