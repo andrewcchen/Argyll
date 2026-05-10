@@ -658,6 +658,9 @@ int main(int argc, char *argv[]) {
 	if (dtinfo == NULL)
 		error("Display technology (-t) must be set");
 
+	/* When running with both -S and -M, default to the external source. */
+	if (doccss && mcallout != NULL)
+		comno = 0;
 
 	/* CCSS: See if we're working from a .ti3 file */
 	if (doccss && innames[0][0] != '\000') {
