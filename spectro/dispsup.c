@@ -86,6 +86,48 @@
 # define DBG(xxx) 
 #endif	/* DEBUG */
 
+/* Read instrument name from command.name. */
+static char *mcallout_inst_name(char *mcallout) {
+	char *fname, *name, *s, *e;
+	FILE *fp;
+
+	if (mcallout == NULL)
+		return NULL;
+
+	if ((fname = malloc(strlen(mcallout) + 6)) == NULL)
+		error("Malloc failed");
+	sprintf(fname, "%s.name", mcallout);
+
+	if ((fp = fopen(fname, "r")) == NULL) {
+		free(fname);
+		return NULL;
+	}
+	free(fname);
+
+	if ((name = calloc(1, 1001)) == NULL)
+		error("Malloc failed");
+	if (fgets(name, 1000, fp) == NULL) {
+		fclose(fp);
+		free(name);
+		return NULL;
+	}
+	fclose(fp);
+
+	for (s = name; *s != '\000' && isspace(*s & 0xff); s++)
+		;
+	for (e = s + strlen(s); e > s && isspace(e[-1] & 0xff);)
+		*--e = '\000';
+
+	if (*s == '\000') {
+		free(name);
+		return NULL;
+	}
+	if (s != name)
+		memmove(name, s, strlen(s) + 1);
+
+	return name;
+}
+
 /* -------------------------------------------------------- */
 /* A default callback that can be provided as an argument to */
 /* inst_handle_calibrate() to handle the display part of a */
@@ -1924,6 +1966,8 @@ static int disprd_fake_read_co(disprd *p,
 		            (int)(rgb[2] * 255.0 + 0.5), rgb[0], rgb[1], rgb[2]);
 		if ((rv = system(cmd)) != 0)
 			error("System command '%s' failed with %d",cmd,rv); 
+		if (p->mcallout_name == NULL)
+			p->mcallout_name = mcallout_inst_name(p->mcallout);
 
 		cols[patch].XYZ_v = 0;
 		cols[patch].sp.spec_n = 0;
@@ -2252,6 +2296,8 @@ static void disprd_del(disprd *p) {
 		p->fake_icc->del(p->fake_icc);
 	if (p->fake_fp != NULL)
 		p->fake_fp->del(p->fake_fp);
+	if (p->mcallout_name != NULL)
+		free(p->mcallout_name);
 
 	if (p->it != NULL)
 		p->it->del(p->it);
@@ -2593,6 +2639,7 @@ a1log *log      	/* Verb, debug & error log */
 	if (mcallout != NULL || xtern != 0)
 		ipath = &icomFakeDevice;	/* Force fake device */
 	p->mcallout = mcallout;
+	p->mcallout_name = mcallout_inst_name(p->mcallout);
 //	p->scallout = scallout;
 	p->xtern = xtern;
 	p->ipath = ipath;

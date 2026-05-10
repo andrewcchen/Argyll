@@ -115,6 +115,7 @@ struct _disprd {
 	int ncal;			/* Number of entries used in cal[] */
 	icmLuSpace *fake_lu;
 	char *mcallout;		/* fake instrument shell callout */
+	char *mcallout_name;	/* optional instrument name from command.name */
 //	char *scallout;		/* measurement XYZ value callout */
 	int xtern;			/* Use external (user supplied) values rather than instument read */
 						/* 1 = Lab, 2 = XYZ */ 
@@ -306,4 +307,3 @@ char * disprd_err(int en);
 
 #define DISPSUP_H
 #endif /* DISPSUP_H */
-

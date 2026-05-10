@@ -1000,7 +1000,8 @@ int main(int argc, char *argv[]) {
 			ocg->add_kword(ocg, 0, "DISPLAY_TYPE_BASE_ID", buf, NULL);
 		}
 	} else {
-		ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", "Fake" , NULL);
+		ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT",
+		               dr->mcallout_name != NULL ? dr->mcallout_name : "Fake", NULL);
 	}
 
 	for (i = 0; i < (npat + xpat); i++) {
@@ -1193,7 +1194,6 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
 
 
 

@@ -1389,7 +1389,11 @@ int main(int argc, char *argv[]) {
 								refs[i][2] = rdcols[i].XYZ[2];
 							}
 						}
-						if (fake || it == NULL)
+						if (it == NULL && dr->mcallout_name != NULL) {
+							if ((refname = strdup(dr->mcallout_name)) == NULL)
+								error("Malloc failed");
+						}
+						else if (fake || it == NULL)
 							refname = "fake spectrometer";
 						else
 							refname = inst_name(it->dtype);
@@ -1404,7 +1408,11 @@ int main(int argc, char *argv[]) {
 							cols[i][1] = rdcols[i].XYZ[1];
 							cols[i][2] = rdcols[i].XYZ[2];
 						}
-						if (fake || it == NULL)
+						if (it == NULL && dr->mcallout_name != NULL) {
+							if ((colname = strdup(dr->mcallout_name)) == NULL)
+								error("Malloc failed");
+						}
+						else if (fake || it == NULL)
 							colname = "fake colorimeter";
 						else
 							colname = inst_name(it->dtype);
