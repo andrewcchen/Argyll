@@ -858,6 +858,7 @@ int main(int argc, char *argv[]) {
 			cols[i].r = rgb[0];
 			cols[i].g = rgb[1];
 			cols[i].b = rgb[2];
+			cols[i].sp.spec_n = 0;
 			cols[i].XYZ[0] = cols[i].XYZ[1] = cols[i].XYZ[2] = -1.0;
 		}
 	} else
