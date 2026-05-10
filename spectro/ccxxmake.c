@@ -97,6 +97,28 @@ static int gcc_bug_fix(int i) {
 }
 #endif	/* APPLE */
 
+/* Classify shell callout measurements from the returned data rather than
+   assuming the source type from callout presence alone. */
+static inst_mode mcallout_meas_mode(col *rdcols, int npat) {
+	int i;
+	int got_spectrum = 0;
+	int got_xyz = 0;
+
+	for (i = 0; i < npat; i++) {
+		if (rdcols[i].sp.spec_n > 0)
+			got_spectrum = 1;
+		if (rdcols[i].XYZ_v != 0)
+			got_xyz = 1;
+	}
+
+	if (got_spectrum)
+		return inst_mode_spectral;
+	if (got_xyz)
+		return inst_mode_colorimeter;
+
+	return inst_mode_none;
+}
+
 /* Invoke with -dfake for testing with a fake device. */
 /* Invoke with -dFAKE for automatic creation of test matrix. */
 /* Will use a fake.icm/.icc profile if present, or a built in fake */
@@ -1296,6 +1318,7 @@ int main(int argc, char *argv[]) {
 				disprd *dr;				/* Display patch read object */
 				inst *it;				/* Instrument */
 				inst_mode  cap = inst_mode_none;	/* Instrument mode capabilities */
+				inst_mode  meascap = inst_mode_none;	/* Actual measurement mode */
 				inst2_capability cap2 = inst2_none;	/* Instrument capabilities 2 */
 				inst3_capability cap3 = inst3_none;	/* Instrument capabilities 3 */
 				icompath *ipath;
@@ -1334,7 +1357,9 @@ int main(int argc, char *argv[]) {
 				it = dr->it;
 
 				if (fake || it == NULL) {
-					if (faketoggle || use_mcallout != NULL)
+					if (use_mcallout != NULL)
+						cap = inst_mode_colorimeter | inst_mode_spectral;
+					else if (faketoggle)
 						cap = inst_mode_spectral;
 					else
 						cap = inst_mode_colorimeter;
@@ -1349,8 +1374,9 @@ int main(int argc, char *argv[]) {
 					}
 				}
 
-				if (doccss && !IMODETST(cap, inst_mode_spectral)) {
+				if (doccss && use_mcallout == NULL && !IMODETST(cap, inst_mode_spectral)) {
 					printf("You have to use a spectrometer to create a CCSS!\n");
+					dr->del(dr);
 					continue;
 				}
 
@@ -1365,10 +1391,23 @@ int main(int argc, char *argv[]) {
 					error("disprd returned error code %d\n",rv);
 				}
 
+				meascap = cap;
+				if (use_mcallout != NULL) {
+					meascap = mcallout_meas_mode(rdcols, npat);
+					if (meascap == inst_mode_none)
+						meascap = inst_mode_spectral;	/* Preserve existing validation failures */
+				}
+
+				if (doccss && !IMODETST(meascap, inst_mode_spectral)) {
+					printf("You have to use a spectrometer to create a CCSS!\n");
+					dr->del(dr);
+					continue;
+				}
+
 				if (doccss) {		/* We'll use the rdcols values */
 					gotref = 1;
 				} else {
-					if (IMODETST(cap, inst_mode_spectral)) {
+					if (IMODETST(meascap, inst_mode_spectral)) {
 						xsp2cie *sp2cie = NULL;
 
 						if (spec) {
@@ -1400,7 +1439,7 @@ int main(int argc, char *argv[]) {
 						gotref = 1;
 						if (sp2cie != NULL)
 							sp2cie->del(sp2cie);
-					} else if (IMODETST(cap, inst_mode_colorimeter)) {
+					} else if (IMODETST(meascap, inst_mode_colorimeter)) {
 						for (i = 0; i < npat; i++) {	/* For all grid points */
 							if (rdcols[i].XYZ_v == 0)
 								error("Didn't get XYZ value");
